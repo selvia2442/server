@@ -1,0 +1,2 @@
+echo "rcp M* *[ph] nlc15401:cpp/we/"
+rcp M* *[ph] nlc15401:cpp/we/

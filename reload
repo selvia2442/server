@@ -1,0 +1,4 @@
+PID=`ps -ef|grep quiz20|grep -v grep| grep -v vim| awk '{print $2}'`
+kill -9 $PID
+sleep 1
+./quiz20

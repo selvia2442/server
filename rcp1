@@ -1,0 +1,2 @@
+echo "rcp $1 nlc15401:cpp/we/"
+rcp $1 nlc15401:cpp/we/

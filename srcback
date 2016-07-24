@@ -1,0 +1,15 @@
+NOWDATE=`date +"%y%m%d_%H"`
+SUBDIR=back_${NOWDATE}
+
+mkdir back 2> /dev/null
+
+echo "cp *[ph] M* reload back/"
+cp *[ph] M* reload back/
+
+mkdir back/${SUBDIR} 2> /dev/null
+
+echo "cp *[ph] M* reload back/${SUBDIR}/"
+cp *[ph] M* reload back/${SUBDIR}/
+
+echo "rm -f back/*/*.o"
+rm -f back/*/*.o

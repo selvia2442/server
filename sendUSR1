@@ -1,0 +1,2 @@
+PID=`ps -ef|grep weK|grep -v grep| awk '{print $2}'`
+kill -SIGINT $PID

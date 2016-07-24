@@ -1,0 +1,340 @@
+weWatch.cpp : "pOrder-"
+ 80:			pOrder->order_idx     = it.first;			// order_idx;
+ 81:			pOrder->ars_send_time = it.second.first;	// ars_send_time;
+ 82:			pOrder->ars_sended	  = it.second.second;	// ars_sended;
+ 84:			g_OrderData[pOrder->order_idx] = pOrder;
+ 85:			dbSelectOrderTable_1Order(pOrder,pOrder->order_idx);
+149:			if(pOrder->ars_sended == 0)		{
+150:				if(pOrder->ars_send_time > g_Now-3 && pOrder->ars_send_time <= g_Now)	{	// 혹시 오차범위를 3초로 한다..
+151:					pOrder->ars_sended = 1;													// 다른프로세서 수행하다 걸릴수도 있으니..
+245:	pt += sprintf(pt," SET owner_idx = %d", pOrder->owner_idx);
+246:	pt += sprintf(pt," , shop_idx = %d", pOrder->shop_idx);
+250:	pt += sprintf(pt," , table_idx = %d", pOrder->user_idx);
+251:	pt += sprintf(pt," , transaction = '주문취소벌금(%s)'", pOrder->shop_name.c_str());
+
+weMysql.cpp : "pOrder-"
+496:	pOrder->order_hp  = res->getString("order_hp");
+497:	pOrder->user_idx  = res->getInt("user_idx");
+498:	pOrder->owner_idx = res->getInt("owner_idx");
+499:	pOrder->shop_idx  = res->getInt("shop_idx");
+500:	pOrder->order_name= res->getString("order_name");
+501:	pOrder->total_price   = res->getInt("total_price");
+502:	pOrder->addr_idx	= res->getInt("addr_idx");
+504:	pOrder->addr1	   = res->getString("addr1");
+505:	pOrder->addr2	   = res->getString("addr2");
+506:	pOrder->secret_no  = res->getString("secret_no");
+508:	pOrder->lat		= res->getDouble("lat");
+509:	pOrder->lng		= res->getDouble("lng");
+511:	pOrder->modify_yn		= res->getString("modify_yn");
+513:	pOrder->order_text = res->getString("order_text");
+515:	pOrder->shop_name = res->getString("shop_name");
+517:	pOrder->pay_way   = res->getString("pay_way");
+518:	pOrder->use_point   = res->getInt("use_point");
+520:	pOrder->acpt_yn		= res->getString("acpt_yn");
+522:	pOrder->create_date	   = res->getString("create_date");
+523:	pOrder->create_systime = GetSystemTime((char*)pOrder->create_date.c_str());
+545:			pOrder->order_idx = order_idx; 
+585:			pOrder->order_idx = idx; 
+
+weApp.cpp : "pOrder-"
+486:				if(DIFF(g_Now,pOrder->create_systime) > MINUTE_SEC(5))  { delete pOrder; continue;  }
+
+weOrder.cpp : "pOrder-"
+ 68:	pOrder->ars_sended = 1;
+ 69:	dbUpdate_1Field("t_order_new", "ars_sended", pOrder->ars_sended, "order_idx", pOrder->order_idx);
+101:		pn += sprintf(pn,"%d|%s|", pOrder->order_idx,  pOrder->acpt_yn.c_str());
+182:		int size1 = pOrder->voDetail.size();
+184:			if(pOrder->voDetail[y] == NULL) continue;
+185:			delete(pOrder->voDetail[y]);			// 생성(new)은 weMysql.cpp
+213:		T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+216:		int duration = g_Now - pOrder->create_systime;	// 경과시간.. 초.
+218:		strcpy(acpt,pOrder->acpt_yn.c_str());
+223:					pOrder->acpt_yn = "c";
+224:					sprintf(msg,"이전<%s>주문취소(시간초과)", pOrder->shop_name.c_str());
+225:					pOrder->delivery_msg = msg;
+227:					if(pOrder->use_point > 0) OBCD_OrderCancel(pOrder,'2');
+230:					dbUpdate_1Field("t_order", "acpt_yn", "n", "order_idx", pOrder->order_idx);
+231:					dbUpdate_1Field("t_buy"  , "acpt_yn", "n", "order_idx", pOrder->order_idx);
+232:					dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+234:					if(duration < MINUTE_SEC(10))  cudp.udp_send_order_reply(pOrder, "y", pOrder->delivery_msg);
+244:					pOrder->acpt_yn  = 'd';
+245:					pOrder->delivery_msg = "자동주문처리완료";
+247:					dbUpdate_1Field("t_order", "acpt_yn", "d", "order_idx", pOrder->order_idx);
+248:					dbUpdate_1Field("t_buy"  , "acpt_yn", "d", "order_idx", pOrder->order_idx);
+249:					dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+251:					pOwner->total_point += pOrder->use_point;
+252:					pOwner->small_point -= pOrder->use_point;
+254:_LOGFILE("pOrder->use_point=%d,pOwner->total_point=%d,pOwner->small_point=%d\n", pOrder->use_point,pOwner->total_point, pOwner->small_point);
+255:					if(pOrder->use_point > 0) OBCD_OrderComplete(pOrder);
+262:				if((g_Now-pOrder->create_systime) > MINUTE_SEC(1))
+264:					pOrder->acpt_yn  = 'c';
+265:					pOrder->delivery_msg = "주문 자동취소";
+267:					if(pOrder->use_point > 0) OBCD_OrderCancel(pOrder,'2');
+269:					dbUpdate_1Field("t_order", "acpt_yn", "c", "order_idx", pOrder->order_idx);
+270:					dbUpdate_1Field("t_buy"  , "acpt_yn", "c", "order_idx", pOrder->order_idx);
+271:					dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+286:	auto pre=g_OrderData.find(pOrder->order_idx);
+288:	DeleteOrder_DetailList(pOrder->voDetail);	// 생성: CMysql::dbGetOrderDetail()
+290:	g_OrderDeletedData[pOrder->order_idx] = pOrder;	
+301:		if((g_Now-pOrder->create_systime) > 180) {
+329:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+331:		_LOGFILE("OwnerList[%d] 오류.. 점검요..\n", pOrder->owner_idx);
+347:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+349:		_LOGFILE("OwnerList[%d] 오류.. 점검요..\n", pOrder->owner_idx);
+368:									pOrder->order_idx,
+369:									pOrder->acpt_yn.c_str(),
+372:									pOrder->delivery_msg.c_str());
+391:	pt += sprintf(pt,"%d|", pOrder->order_idx);
+392:	pt += sprintf(pt,"%s|",	pOrder->order_hp.c_str());
+393:	pt += sprintf(pt,"%d|",	pOrder->user_idx);
+394:	pt += sprintf(pt,"%d|",	pOrder->owner_idx);
+395:	pt += sprintf(pt,"%d|",	pOrder->shop_idx);
+397:	pt += sprintf(pt,"%d|",	pOrder->addr_idx);
+398:	pt += sprintf(pt,"%s|",	pOrder->addr1.c_str());
+399:	pt += sprintf(pt,"%s|",	pOrder->addr2.c_str());
+400:	pt += sprintf(pt,"%f|",	pOrder->lat);
+401:	pt += sprintf(pt,"%f|",	pOrder->lng);
+403:	pt += sprintf(pt,"%s|",	pOrder->order_text.c_str());
+404:	pt += sprintf(pt,"%s|",	pOrder->secret_no.c_str());
+406:	pt += sprintf(pt,"%d|",	pOrder->menu_cnt);
+407:	pt += sprintf(pt,"%d|",	pOrder->total_price);
+408:	pt += sprintf(pt,"%d|",	pOrder->use_point);
+409:	pt += sprintf(pt,"%s|",	pOrder->pay_way.c_str());
+410:	pt += sprintf(pt,"%s|",	pOrder->acpt_yn.c_str());
+412:	pt += sprintf(pt,"%d|",	pOrder->create_systime);
+414:	for(T_ORDER_DETAIL* pDet : pOrder->voDetail)	{
+432:_LOGFILE("SendOrderSheet(idx=%d)...\n", pOrder->order_idx);
+434:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+436:		_LOGFILE("OwnerList[%d] 오류.. 점검요..\n", pOrder->owner_idx);
+444:		if(pOrder->SendFlag == 1) return;			// PC로 보냈으면 또보내지 않게..
+453:		pOrder->SendFlag = 1;
+484:			 							pOrder->order_idx,pOrder->owner_idx,pOrder->shop_idx,pOrder->acpt_yn.c_str(),acpt_yn.c_str(),retval);
+486:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+489:	T_SHOP*  pShop  = GetMember(g_ShopMap, pOrder->shop_idx);
+515:_LOGFILE("Order_Acpt_Process(idx=%d)...owner_idx=%d, shop_idx=%d, retval=%d\n", pOrder->order_idx,pOwner->owner_idx,pOrder->shop_idx,retval);
+518:	sprintf(Query,"update t_shopowner set order_deny_cnt=0,small_point=small_point+%d where owner_idx=%d", pOrder->use_point, pOrder->owner_idx);
+521:	pOrder->acpt_yn = "y";
+523:	sprintf(Query,"update t_order set acpt_yn='y',ret_val='%d' where order_idx=%d",  retval, pOrder->order_idx);
+525:	sprintf(Query,"update t_buy   set acpt_yn='y',ret_val='%d' where order_idx=%d",  retval, pOrder->order_idx);
+530:	Send_Order_Reply_Msg(pOrder,pOrder->order_hp,(char*)"주문",user_msg);																	//  고객에게 응답문자..
+543:_LOGFILE("Order_Deny_Process(idx=%d)...\n", pOrder->order_idx);
+547:	pOrder->acpt_yn = acpt_yn;		// "n" or "e"
+549:	sprintf(Query,"update t_order set acpt_yn='%s',ret_val='%d' where order_idx=%d",  acpt_yn.c_str(), retval, pOrder->order_idx);
+551:	sprintf(Query,"update t_buy   set acpt_yn='%s',ret_val='%d' where order_idx=%d",  acpt_yn.c_str(), retval, pOrder->order_idx);
+554:	if(pOrder->use_point > 0) OBCD_OrderCancel(pOrder,'2');		// 주문취소에 따른 포인트 롤백
+562:	Send_Order_Reply_Msg(pOrder,pOrder->order_hp,(char*)"주문",user_msg);																	//  고객에게 응답문자..
+569:	dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+574:		sprintf(Query,"update t_shopowner set order_deny_cnt=order_deny_cnt+1,order_deny_time=%u where owner_idx=%d",UINT(g_Now),pOrder->owner_idx);
+577:		sprintf(Query,"update t_shop set msg_order_yn='n' where shop_idx=%d",pOrder->shop_idx);
+588:_LOGFILE("Order_Deny_Process(idx=%d)...\n", pOrder->order_idx);
+592:	if(pOrder->acpt_yn != "y") return;
+593:	pOrder->acpt_yn = "x";		// "x"
+595:	sprintf(Query,"update t_order set acpt_yn='%s',ret_val='%d' where order_idx=%d",  acpt_yn.c_str(), retval, pOrder->order_idx);
+597:	sprintf(Query,"update t_buy   set acpt_yn='%s',ret_val='%d' where order_idx=%d",  acpt_yn.c_str(), retval, pOrder->order_idx);
+600:	if(pOrder->use_point > 0) OBCD_OrderCancel(pOrder,'4');		// 주문취소에 따른 포인트 롤백
+607:	Send_Order_Reply_Msg(pOrder,pOrder->order_hp,(char*)"주문",user_msg);																	//  고객에게 응답문자..
+614:	dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+623:_LOGFILE("Order_Done_Process(idx=%d)...\n", pOrder->order_idx);
+626:	sprintf(Query,"update t_shopowner set total_point=total_point+%d,small_point=small_point-%d where owner_idx=%d",pOrder->use_point,pOrder->use_point,pOrder->owner_idx);
+629:	dbUpdate_1Field("t_order", "acpt_yn", "d", "order_idx", pOrder->order_idx);
+630:	dbUpdate_1Field("t_buy"  , "acpt_yn", "d", "order_idx", pOrder->order_idx);
+631:	dbDelete_1Record("t_order_new", "order_idx", pOrder->order_idx);
+633:	if(pOrder->use_point > 0) OBCD_OrderComplete(pOrder);
+
+weLib.cpp : "pOrder-"
+104:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+105:	T_SHOP     * pShop  = GetMember(g_ShopMap ,pOrder->shop_idx);
+122:		pt += sprintf(pt,"<배달이_예비주문:%d>\n"	, pOrder->order_idx);
+123:		pt += sprintf(pt,"고객: %s\n"			, tel_dash(pOrder->order_hp));
+124:		pt += sprintf(pt,"결재방법:<%s>\n"		, getPayWay(pOrder->pay_way));
+125:		if(pOrder->use_point > 0) 	{
+126:			pt += sprintf(pt,"주문총액:%d원>\n"	, pOrder->total_price);
+127:			pt += sprintf(pt,"포 인 트:%d원\n"	, pOrder->use_point);
+128:			pt += sprintf(pt,"받을금액:%d\n"    , pOrder->total_price-pOrder->use_point);
+131:			pt += sprintf(pt,"주문금액:%d\n"    , pOrder->total_price-pOrder->use_point);
+135:		int size = pOrder->voDetail.size();
+139:			pDet = pOrder->voDetail[i];
+142:		pt += sprintf(pt,"요청사항: %s\n"			, pOrder->order_text.c_str());
+144:		if(pOrder->addr2.length() == 0)	pt += sprintf(pt,"\n주소:%s ", pOrder->addr1.c_str());
+145:		else							pt += sprintf(pt,"\n주소:%s %s ", pOrder->addr1.c_str(), pOrder->addr2.c_str());
+147:		pt += sprintf(pt,"<거리:%dm>\n", pOrder->distance);
+148:		if(pOrder->secret_no.length() > 0)	pt += sprintf(pt,"현관비번:%s\n", pOrder->secret_no.c_str()	);
+149:		pt += sprintf(pt,"주문시각: %s\n"			, pOrder->create_date.c_str());
+153:		if(pOrder->use_point > 0) 	{
+154:			pt += sprintf(pt,"\n고객의 포인트(%d원)는 \"우리동네배달이\"에에서 업소에 현금으로 지급합니다", pOrder->use_point);
+155://			pt += sprintf(pt,"만약 체결실패로 고객에 직접 전화하셨다면 아래를 클릭하셔야 고객의 포인트사용이 다시적용됩니다. http://www.baedari.net/order.php?%d", pOrder->order_idx);
+175:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+176:	T_SHOP     * pShop  = GetMember(g_ShopMap ,pOrder->shop_idx);
+193:		pt += sprintf(pt,"<주문OK:%d>\n"	, pOrder->order_idx);
+194:		pt += sprintf(pt,"%d원<%s>\n",   	pOrder->total_price, getPayWay(pOrder->pay_way));
+195:		if(pOrder->use_point > 0) 	{
+196:			pt += sprintf(pt,"%d원<포인트>공동화폐서 현금지급\n", pOrder->use_point);
+198:		if(pOrder->use_point == 0) 	{
+218:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+219:	T_SHOP     * pShop  = GetMember(g_ShopMap ,pOrder->shop_idx);
+234:		strPrintf(pSms->content,"<배달이_주문결과:%d>\n%s"	, pOrder->order_idx, msg);
+253:	T_OWNER* pOwner = GetMember(g_OwnerMap,pOrder->owner_idx);
+258:	T_SHOP* pShop = GetMember(g_ShopMap,pOrder->shop_idx);
+266:	pArs->owner_idx = pOrder->owner_idx;
+267:	pArs->shop_idx  = pOrder->shop_idx;
+268:	pArs->order_idx = pOrder->order_idx;
+270:	pArs->from_tel	= pOrder->order_hp;
+276:		pt += sprintf(pt,"우리동네배달이 주문센타입니다. %s 에 사시는 고객님이 ", pOrder->addr1.c_str());
+278:		int size = pOrder->voDetail.size();
+280:			T_ORDER_DETAIL* pDet = pOrder->voDetail[i];
+283:		if(pOrder->use_point > 0)  {
+284:			pt += sprintf(pt," %d원중 포인트 %d원 사용하여 ", pOrder->total_price, pOrder->use_point);
+286:		pt += sprintf(pt,"총 %d원어치를 주문하셨습니다. ", pOrder->total_price - pOrder->use_point);
+290:		pt += sprintf(pt,"결재방법은 %s이며 "		, getPayWay(pOrder->pay_way));
+291:		if(pOrder->addr2.length() > 0)	pt += sprintf(pt,"세부주소는 %s 이고, "	, pOrder->addr2.c_str());
+292:		if(pOrder->distance > 0  && pOrder->distance < 10000)	pt += sprintf(pt,"직선거리 %.1f 킬로미터로 ", float(pOrder->distance)/1000);
+294:		if(pOrder->use_point > 0)  {
+295:			pt += sprintf(pt," 고객님이 사용한 포인트 %d원은 우리동네배달이 에서 현금으로 지급하며, 어플홈화면 좌상단 설정의 업소정보-획득포인트에서 확인하실 수 있습니다.", pOrder->use_point);
+320:	pt += sprintf(pt,"<주문OK:%d>\n"	, pOrder->order_idx);
+321:	pt += sprintf(pt,"%d원<%s>\n",   	pOrder->total_price, getPayWay(pOrder->pay_way));
+323:	if(pOrder->use_point > 0)			pt += sprintf(pt,"%d원<포인트>공동화폐서 현금지급\n", pOrder->use_point);
+324:	if(pOrder->use_point == 0)			pt += sprintf(pt,"--플레이스토어 \"배달이\"검색--");
+365:	T_SHOP* pShop = GetMember(g_ShopMap,pOrder->shop_idx);
+369:				sprintf(shop_msg,"업소통화중으로 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());						break;
+372:				sprintf(shop_msg,(char*)"업소 응답없어 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());				break;
+375:				sprintf(shop_msg,(char*)"중간끊김으로 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());					break;
+378:				sprintf(shop_msg,(char*)"전화연결중 끊김으로 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());			break;
+381:				sprintf(shop_msg,(char*)"입력키오류로 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());					break;
+384:				sprintf(shop_msg,(char*)"시스템부하로 체결실패. 고객에직접전화요망(%s)", pOrder->order_hp.c_str());					break;
+387:				sprintf(shop_msg,(char*)"체결실패(기타오류). 고객에직접전화요망(%s)", pOrder->order_hp.c_str());					break;
+399:_LOGFILE("Send_Order_Reply_Msg(),, from_hp=%s => to_hp=%s\n", pOrder->order_hp.c_str(), g_Config.FromTel.c_str());
+403:			pSms->owner_idx = pOrder->owner_idx;
+404:			pSms->shop_idx  = pOrder->shop_idx;
+
+OBCD.cpp : "pOrder-"
+ 23:	pOrder->order_hp 	= pPos->pos_hp;
+ 24:	pOrder->acpt_yn 	= "r";
+ 26:	pOrder->user_idx 	= atoi(GetToken(pn,SEPARATOR,pn));
+ 27:	pOrder->order_name	= GetToken(pn,SEPARATOR,pn);	// nick name..  
+ 28:	pOrder->hp_sub		= GetToken(pn,SEPARATOR,pn);
+ 29:	pOrder->shop_idx	= atoi(GetToken(pn,SEPARATOR,pn));
+ 31:	pOrder->shop_name	= GetToken(pn,SEPARATOR,pn);
+ 32:	pOrder->total_price	= atoi(GetToken(pn,SEPARATOR,pn));
+ 33:	pOrder->use_point	= atoi(GetToken(pn,SEPARATOR,pn));
+ 34:	pOrder->pay_way		= GetToken(pn,SEPARATOR,pn);
+ 35:	pOrder->order_text	= GetToken(pn,SEPARATOR,pn);
+ 36:	pOrder->addr_idx	= atoi(GetToken(pn,SEPARATOR,pn));
+ 37:	pOrder->addr1		= GetToken(pn,SEPARATOR,pn);
+ 38:	pOrder->addr2		= GetToken(pn,SEPARATOR,pn);
+ 40:	pOrder->addr1_update_flag	= atoi(GetToken(pn,SEPARATOR,pn));			// 기본주소를 업어칠건지 말건지 플래그..
+ 42:	pOrder->create_systime = g_Now;
+ 43:	pOrder->create_date  = strDateTime(g_Now);
+ 61:	pOrder->menu_cnt= atoi(GetToken(pn,SEPARATOR,pn)); 
+ 64:	for(int x=0; x<pOrder->menu_cnt; x++)	{
+ 66:		pOrder->voDetail.push_back(pDet);
+ 79:			pOrder->product = pDet->menu_name;		// 전체의 메뉴명은 첫주문의 메뉴명으로 한다.
+ 80:			if(pOrder->menu_cnt > 1)	pOrder->product += "외..";
+ 87:	T_SHOP*		pShop	= GetMember(g_ShopMap,pOrder->shop_idx);
+ 89:	pOrder->owner_idx	= pShop->owner_idx;
+ 90:	pOrder->tel_main	= pShop->tel_main;
+ 95:	if(pOrder->addr_idx > 0)	{
+ 97:		sprintf(Query,"select lat,lng,addr,roadaddr from ta_address where addr_idx=%d", pOrder->addr_idx);
+ 99:			pOrder->lat = atof(GetToken(pn=Query,'|',pn));
+100:			pOrder->lng = atof(GetToken(pn,'|',pn));
+107:	if(pOrder->lat > 0) {
+108:		pOrder->distance = GetDistance(pOwner->lat,pOwner->lng,pOrder->lat,pOrder->lng);  // 거리계산..
+114:		for(T_ORDER_DETAIL* pDet : pOrder->voDetail) delete(pDet);
+121:	if(pOwner->order_addr_type == "r" && roadaddr1.length() > 0)	pOrder->addr1 = roadaddr1;
+122:	else															pOrder->addr1 = addr1;
+147:		pt += sprintf(pt=Query,"insert into t_order set order_hp='%s'"	, pOrder->order_hp.c_str());
+148:		pt += sprintf(pt,",hp_sub='%s'"		, pOrder->hp_sub.c_str());
+149:		pt += sprintf(pt,",user_idx=%d"  	, pOrder->user_idx);
+150:		pt += sprintf(pt,",order_name='%s'"	, pOrder->order_name.c_str());
+151:		pt += sprintf(pt,",region_idx=%d"  	, pOrder->addr_idx);
+152:		pt += sprintf(pt,",addr_idx=%d"  	, pOrder->addr_idx);
+153:		pt += sprintf(pt,",addr1='%s'"		, pOrder->addr1.c_str());
+154:		pt += sprintf(pt,",addr2='%s'"		, pOrder->addr2.c_str());
+156:		pt += sprintf(pt,",distance=%d"		, pOrder->distance);
+157:		pt += sprintf(pt,",lat=%.7f"  		, pOrder->lat);
+158:		pt += sprintf(pt,",lng=%.7f"  		, pOrder->lng);
+160:		pt += sprintf(pt,",shop_idx=%d"		, pOrder->shop_idx);
+161:		pt += sprintf(pt,",tel_main='%s'"	, pOrder->tel_main.c_str());
+162:		pt += sprintf(pt,",shop_name='%s'"	, pOrder->shop_name.c_str());
+163:		pt += sprintf(pt,",product='%s'"	, pOrder->product.c_str());
+164:		pt += sprintf(pt,",total_price=%d"	, pOrder->total_price);
+165:		pt += sprintf(pt,",pay_way='%s'"	, pOrder->pay_way.c_str());
+166:		pt += sprintf(pt,",use_point=%d"	, pOrder->use_point);
+167:		pt += sprintf(pt,",order_text='%s'"	, pOrder->order_text.c_str());
+168:		pt += sprintf(pt,",owner_idx=%d"	, pOrder->owner_idx);
+169:		pt += sprintf(pt,",create_date='%s'" , pOrder->create_date.c_str());
+171:		if((pOrder->order_idx=dbInsertQuery_Index(Query)) <= 0)  return pOrder->order_idx;
+179:		for(auto pDet : pOrder->voDetail) 
+181:			pt += sprintf(pt=Query,"insert into t_order_detail set order_idx=%d"	, pOrder->order_idx);
+188:			pt += sprintf(pt,",create_date='%s'" , pOrder->create_date.c_str());
+197:		pOrder->ars_send_time = g_Now + 40;			// 현재부터 40초안에 응답 기다림..  안오면 ARS send..
+199:		pt += sprintf(pt=Query,"insert into t_order_new set order_idx=%d"  	, pOrder->order_idx);
+200:		pt += sprintf(pt,",ars_send_time=%d,ars_sended=%d" , (int)pOrder->ars_send_time,pOrder->ars_sended);		// ARS로 보냈는지여부..
+201:		pt += sprintf(pt,",create_date='%s'" , pOrder->create_date.c_str());
+208:		pt += sprintf(pt=Query,"insert into t_order_log set shop_idx=%d"  	, pOrder->shop_idx);
+209:		pt += sprintf(pt,",owner_idx=%d"	, pOrder->owner_idx);
+211:		pt += sprintf(pt,",order_idx=%d"	, pOrder->order_idx);
+212:		pt += sprintf(pt,",hp='%s'"			, pOrder->order_hp.c_str());
+213:		pt += sprintf(pt,",create_date='%s'" , pOrder->create_date.c_str());
+224:			pt += sprintf(pt,",use_date='%s'" 	, pOrder->create_date.c_str());
+225:			pt += sprintf(pt,",order_idx=%d"	, pOrder->order_idx);
+236:			pt += sprintf(pt=Query,"insert into t_point set user_idx=%d"	, pOrder->user_idx);
+240:			pt += sprintf(pt,",order_idx=%d"	, pOrder->order_idx);
+250:		pt += sprintf(pt=Query,"insert into t_buy set order_idx=%d"	, pOrder->order_idx);
+251:		pt += sprintf(pt,",user_idx=%d"  	, pOrder->user_idx);
+252:		pt += sprintf(pt,",user_id='%s'" 	, pOrder->order_hp.c_str());
+253:		pt += sprintf(pt,",user_flag=%d"  	, pOrder->user_idx>0?1:0);		// user_idx(가입신청)가 있으면 1, 없으면 0
+254:		pt += sprintf(pt,",shop_name='%s'"	, pOrder->shop_name.c_str());
+255:		pt += sprintf(pt,",tel_main='%s'"	, pOrder->tel_main.c_str());
+256:		pt += sprintf(pt,",shop_idx=%d"		, pOrder->shop_idx);
+257:		pt += sprintf(pt,",price=%d"		, pOrder->total_price);
+258:		pt += sprintf(pt,",use_point=%d"	, pOrder->use_point);
+259:		pt += sprintf(pt,",product='%s'"	, pOrder->product.c_str());
+260:		pt += sprintf(pt,",buy_date='%s'"	, pOrder->create_date.c_str());
+266:	if(pOrder->user_idx > 0)	{											//  사용자 기본주소 업데이트
+269:		if(pOrder->addr1_update_flag == 0) 	{								//  update를 안하면 addr1이 비어있는지 점검..
+270:			sprintf(Query,"select addr1 from t_user where user_idx=%d"	, pOrder->user_idx);
+274:		pt += sprintf(pt=Query,"update t_user set addr_idx=%d", pOrder->addr_idx);
+276:			pt += sprintf(pt,",addr1='%s',addr2='%s'", pOrder->addr1.c_str(), pOrder->addr2.c_str());
+278:		pt += sprintf(pt,",addrsub1='%s',addrsub2='%s'", pOrder->addr1.c_str(), pOrder->addr2.c_str());
+279:		pt += sprintf(pt," where user_idx=%d"	, pOrder->user_idx);
+285:	return pOrder->order_idx;
+307:		sprintf(Query,"select coupon_code,point from t_coupon where order_idx=%d", pOrder->order_idx);
+310:		sprintf(Query,"select coupon_code,point from t_coupon_book where order_idx=%d", pOrder->order_idx);
+321:												pOrder->owner_idx,
+322:												pOrder->shop_idx,
+323:												pOrder->user_idx,
+324:												pOrder->order_idx,
+337:		sprintf(Query,"select tot_point from t_ownerpoint where owner_idx=%d order by create_date desc limit 1", pOrder->owner_idx);
+341:	tot_point += pOrder->use_point;
+345:		pt += sprintf(pt,"owner_idx=%d",	pOrder->owner_idx);
+346:		pt += sprintf(pt,",shop_idx=%d",	pOrder->shop_idx);
+350:		pt += sprintf(pt,",table_idx=%d",	pOrder->order_idx);
+352:		pt += sprintf(pt,",deal_point=%d",	pOrder->use_point);
+353:		pt += sprintf(pt,",use_point=%d",	pOrder->use_point);
+377:	if(pOrder->user_idx==0)  return 0;	// 로그인 안한 이용자..
+379:_LOGFILE("OrderCancel(user_idx=%d)...\n", pOrder->user_idx);
+391:		pt += sprintf(pt,"(select user_idx,'%c',coupon_code,point,order_idx,-point,now() from %s where order_idx=%d)", level, table[x], pOrder->order_idx);
+394:		pt += sprintf(pt=Query,"update %s set use_flag='',order_idx=null,use_date=null where order_idx=%d",	table[x], pOrder->order_idx);
+
+weUdp.cpp : "pOrder-"
+213:_LOGFILE("udp_send_order_reply2().. version='%s', hp(%s), msg= %s\n\n", pPos->version.c_str(), pOrder->order_hp.c_str(), msg.c_str());
+216:	sprintf(sbuf, "POCD|%d|%s|p|%s|", pOrder->order_idx, acpt_yn.c_str(), msg.c_str());
+231:_LOGFILE("udp_send_order_reply().. hp(%s), msg= %s\n\n", pOrder->order_hp.c_str(), msg.c_str());
+233:	Z_POSITION* pPos = GetMember(g_PositionMap,pOrder->order_hp);
+235:		_LOGFILE_NONUM("UDP::: %s번호 어플접속자가 없습니다.\n", pOrder->order_hp.c_str());
+242:	sprintf(sbuf, "POP_ORDER|%d|주문|%s|1|확인|", pOrder->order_idx, msg.c_str());
+1095:		g_OrderData[pOrder->order_idx] = pOrder;			//  주문에 추가한다..
+1098:		sprintf(msg,"%d||", pOrder->order_idx);
+1106:		sprintf(Query,"update t_shop set total_call=total_call+1,total_app=total_app+1 where shop_idx=%d", pOrder->shop_idx);
+1113:sprintf(msg,"%d|y|p|주문수락", pOrder->order_idx);
+1114://sprintf(msg,"%d|y|p|주문거절", pOrder->order_idx);
+1115:sprintf(msg,"%d|u|p|배달예상시간이 1시간입니다. 그래도 주문하시겠습니까?", pOrder->order_idx);
+1116://sprintf(msg,"%d|c|p|업소사정으로 부득이 주문(후리이드치(18000원)이 취소되었습니다. 양해바라며 고객님께 업소로부터 보상쿠폰 1000원이 지급되었습니다.", pOrder->order_idx);
+1134:		if(pOrder->acpt_yn == "y") odrCheck.Order_Recv_From_Shop(pOrder, "x", retval);		//  주문강제취소
+1135:		if(pOrder->acpt_yn == "n") odrCheck.Order_Recv_From_Shop(pOrder, "d", retval);		//  주문수락
+1147:		pOrder->ars_send_time = g_Now + 40;		// 다시 30초 세팅..		 40초가 지나면 ARS를 보낸다(Watcher가 담당)
+1148:		dbUpdate_1Field("t_order_new", "ars_send_time", pOrder->ars_send_time, "order_idx", pOrder->order_idx);
+1161:	if(pOrder != NULL && pOrder->ars_sended == 0)
+1163:		pOrder->ars_sended = 1;
+1164:		dbUpdate_1Field("t_order_new", "ars_sended", pOrder->ars_sended, "order_idx", pOrder->order_idx);
+
